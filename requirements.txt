@@ -1,0 +1,7 @@
+peewee == 2.8.0
+six == 1.10.0
+future == 0.15.2
+spotipy == 2.3.8
+pyTelegramBotAPI == 2.0.1
+requests == 2.9.1
+youtube_dl == 2016.4.13

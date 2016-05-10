@@ -1,0 +1,4 @@
+.directory
+SECRETS.txt
+*.py[cod]
+nbproject/*

@@ -1,0 +1,26 @@
+#!/bin/sh
+
+cd "$(dirname "$0")"
+
+GREP_EXPRESSION="[p]ython -u yt2audiobot.py"
+
+
+PID=`ps aux | grep "$GREP_EXPRESSION" | awk '{print $2}'`
+if [ -z "$PID" ]
+then
+	echo "Starting process!"
+    python -u yt2audiobot.py > ../log_file.log 2>&1 &
+else
+    echo "kill -9 $PID"
+    kill -9 $PID
+fi
+
+sleep 2
+
+PID=`ps aux | grep "$GREP_EXPRESSION" | awk '{print $2}'`
+if [ -z "$PID" ]
+then
+    echo "Process is stopped"
+else
+    echo "Process is running with pid $PID"
+fi
