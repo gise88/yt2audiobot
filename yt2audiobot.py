@@ -183,16 +183,19 @@ def start_bot():
 			cid = m.chat.id
 			if users_db.is_admin(telegram_id=m.from_user.id, username=m.from_user.username):
 				update_user(m)
-				text = m.text.split(' ', 1)[1]
 				try:
-					dict = username_or_telegram_id(text)
+					text = m.text.split(' ', 1)[1]
 					try:
-						users_db.add_authorized_user(**dict)
-						bot.send_message(cid, "Done! " + Emoji.THUMBS_UP_SIGN)
-					except UserAlreadyException as e:
-						bot.send_message(cid, str(e) + ".. " + Emoji.NEUTRAL_FACE)
-				except ParseException as e:
-					bot.send_message(cid, str(e))
+						dict = username_or_telegram_id(text)
+						try:
+							users_db.add_authorized_user(**dict)
+							bot.send_message(cid, "Done! " + Emoji.THUMBS_UP_SIGN)
+						except UserAlreadyException as e:
+							bot.send_message(cid, str(e) + ".. " + Emoji.NEUTRAL_FACE)
+					except ParseException as e:
+						bot.send_message(cid, str(e))
+				except IndexError as e:
+					pass
 			else:
 				bot.send_message(cid, "This command can be used only by admin users")
 		except Exception as e:
@@ -204,18 +207,21 @@ def start_bot():
 			cid = m.chat.id
 			if users_db.is_root(telegram_id=m.from_user.id, username=m.from_user.username):
 				update_user(m)
-				text = m.text.split(' ', 1)[1]
 				try:
-					dict = username_or_telegram_id(text)
+					text = m.text.split(' ', 1)[1]
 					try:
-						users_db.add_admin(**dict)
-						bot.send_message(cid, "Done! " + Emoji.THUMBS_UP_SIGN)
-					except UserAlreadyException as e:
-						bot.send_message(cid, str(e) + ".. " + Emoji.NEUTRAL_FACE)
-					except UserBlockedException as e:
-						bot.send_message(cid, str(e) + ".. " + Emoji.POUTING_FACE)
-				except ParseException as e:
-					bot.send_message(cid, str(e))
+						dict = username_or_telegram_id(text)
+						try:
+							users_db.add_admin(**dict)
+							bot.send_message(cid, "Done! " + Emoji.THUMBS_UP_SIGN)
+						except UserAlreadyException as e:
+							bot.send_message(cid, str(e) + ".. " + Emoji.NEUTRAL_FACE)
+						except UserBlockedException as e:
+							bot.send_message(cid, str(e) + ".. " + Emoji.POUTING_FACE)
+					except ParseException as e:
+						bot.send_message(cid, str(e))
+				except IndexError as e:
+					pass
 			else:
 				bot.send_message(cid, "This command can be used only by root user")
 		except Exception as e:
