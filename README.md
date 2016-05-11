@@ -25,7 +25,7 @@ Create a file as EXAMPLE_SECRETS.txt with the following lines:
 Just use ./startstop to run it or stop it
 
 
-#### Thank's to:
+#### Thanks to:
 * eternnoir (https://github.com/eternnoir/pyTelegramBotAPI)
 * rg3 (https://github.com/rg3/youtube-dl/)
 * coleifer (https://github.com/coleifer/peewee)
