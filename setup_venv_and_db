@@ -1,0 +1,11 @@
+#!/bin/sh
+
+cd "$(dirname "$0")"
+
+ENV_FOLDER='env2.7'
+
+python2 `which virtualenv` "$ENV_FOLDER"
+
+"$ENV_FOLDER"/bin/pip install -r requirements.txt
+
+"$ENV_FOLDER"/bin/python yt2audiobot.py createdb

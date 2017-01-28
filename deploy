@@ -1,0 +1,61 @@
+#!/bin/sh
+
+REMOTE_DIR="yt2audiobot"
+DIST_FOLDER='dist'
+
+TAR_PACKAGE="dist.tar.gz"
+SOURCE_FOLDER='yt2audiobot/'
+IMPORTANT_FILES='yt2audiobot.py SECRETS.txt requirements.txt setup_venv_and_db startstop'
+
+
+# checking parameters
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    echo "[usage] $0 <user> <REMOTE IP> <[optional] REMOTE SSH PORT>"
+    exit 1
+fi
+
+# move to working directory
+cd "$(dirname "$0")"
+
+# some vars
+USER="$1"
+IP="$2"
+SERVER="${USER}@${IP}"
+SCP_PORT="-P 22"
+SSH_PORT="-p 22"
+
+# if the remote port is specified
+if [ "$#" -eq 3 ]; then
+    SCP_PORT="-P $3"
+    SSH_PORT="-p $3"
+fi
+
+## create the dist folder and copy all sources inside of that
+rm -rf "$DIST_FOLDER"
+mkdir -p "$DIST_FOLDER"
+cp -r "$SOURCE_FOLDER" "$DIST_FOLDER"
+for f in ${IMPORTANT_FILES} ; do
+    echo "copying $f to $DIST_FOLDER"
+    cp "$f" "$DIST_FOLDER"
+done
+
+# remove all pyc files and the '__pycache__' directory from the dist directory
+find "$DIST_FOLDER" -name "*.pyc" -exec rm -rf {} \;
+find "$DIST_FOLDER" -type d -name "__pycache__" -prune -exec rm -rf {} \;
+
+## create a tar.gz to send to the server
+tar -zcf "$TAR_PACKAGE" "$DIST_FOLDER"/*
+
+scp "$SCP_PORT" "$TAR_PACKAGE" "${SERVER}:${REMOTE_DIR}"
+
+ssh "$SSH_PORT" "$SERVER" -o StrictHostKeychecking=no -T << EOF
+    cd "${REMOTE_DIR}/"
+    ./startstop stop
+    tar -zxf "${TAR_PACKAGE}" --strip 1
+    ./startstop stop
+    ./setup_venv_and_db
+    ./startstop start
+    rm "${TAR_PACKAGE}"
+EOF
+
+

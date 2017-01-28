@@ -1,4 +1,14 @@
 .directory
+.idea
+
+# dirs
+env2.7
+env3
+dist*
+output_dir
+
+# files
 SECRETS.txt
 *.py[cod]
-nbproject/*
+*.sqlite
+log_file.log

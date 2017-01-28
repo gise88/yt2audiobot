@@ -25,6 +25,7 @@ from future.utils import bytes_to_native_str as n
 
 # http://apps.timwhitlock.info/emoji/tables/unicode
 
+
 class Emoji(object):
     """This object represents an Emoji."""
 

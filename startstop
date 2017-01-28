@@ -5,19 +5,45 @@ cd "$(dirname "$0")"
 GREP_EXPRESSION="[p]ython -u yt2audiobot.py"
 
 
-PID=`ps aux | grep "$GREP_EXPRESSION" | awk '{print $2}'`
-if [ -z "$PID" ]
-then
-	echo "Starting process!"
-    python -u yt2audiobot.py > ../log_file.log 2>&1 &
+start() {
+    PID=$1
+    if [ -z "$PID" ] ; then
+        echo "Starting process!"
+        env2.7/bin/python -u yt2audiobot.py > log_file.log 2>&1 &
+        sleep 3
+    fi
+}
+
+stop() {
+    PID=$1
+    if [ -n "$PID" ] ; then
+        echo "kill -9 $PID"
+        kill -9 "$PID"
+        sleep 3
+    fi
+}
+
+PID=`COLUMNS=200 ps aux | grep "$GREP_EXPRESSION" | awk '{print $2}'`
+
+# checking parameters
+if [ "$#" -eq 0 ] ; then
+    if [ -z "$PID" ] ; then
+        start $PID
+    else
+        stop $PID
+    fi
 else
-    echo "kill -9 $PID"
-    kill -9 $PID
+    if [ "$1" = "start" ] ; then
+        start $PID
+    elif [ "$1" = "stop" ] ; then
+        stop $PID
+    else
+        echo "[usage] $0 <[optional] start/stop>"
+        exit 1
+    fi
 fi
 
-sleep 2
-
-PID=`ps aux | grep "$GREP_EXPRESSION" | awk '{print $2}'`
+PID=`COLUMNS=200 ps aux | grep "$GREP_EXPRESSION" | awk '{print $2}'`
 if [ -z "$PID" ]
 then
     echo "Process is stopped"
