@@ -11,7 +11,7 @@
 ```
 # pip install -r requirements.txt
 ```
-or you can use the script `setup_venv_and_db` to create a virtual environment and initialize the database
+or you can use the script `setup_venv_and_db` to create a virtual environment for Python 2.7 and initialize the database
 
 
 #### Configuration:
@@ -41,8 +41,8 @@ for these amazing libraries. :heart:
 #### TODO:
 * I don't have so much time to work at this, so the code can be a bit ugly. As soon as I can I'll put my hands and time on this project.
 * Merge the databases.. I don't even know why I created them separately by the first time! 
-* User management for root and admins → list, ban, etc.
+* Users management for root and admins → list, ban, etc.
 * Audio management for root and admins → list, delete, etc.
-* Increase of usability.. Telegram updates incessantly
+* Increase of the usability.. Telegram updates incessantly!
 * Make it works on Python 3.3+ at least!
 * Think about moving to [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
