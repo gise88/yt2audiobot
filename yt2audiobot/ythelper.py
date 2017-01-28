@@ -1,34 +1,34 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, unicode_literals
+from __future__ import unicode_literals, absolute_import
 
 import os
-
+import logging
 import youtube_dl as ytdl
 
-import metadatahelper
-import settings
-import utils
-import logging
+from yt2audiobot import utils
+from yt2audiobot import settings
+from yt2audiobot import metadatahelper
+
 
 logger = logging.getLogger(settings.BOT_NAME)
 
 
 # PRINTABLE_INFO = {
-#     "creator",
-#     "duration",
-#     "id",
-#     "title",
-#     "ext",
-#     "categories",
-#     "tags",
-#     "uploader",
-#     "alt_title",
-#     "url",
-#     "webpage_url",
-#     "formats",
-#     "extractor"
+#     'creator',
+#     'duration',
+#     'id',
+#     'title',
+#     'ext',
+#     'categories',
+#     'tags',
+#     'uploader',
+#     'alt_title',
+#     'url',
+#     'webpage_url',
+#     'formats',
+#     'extractor'
 # }
 
 
@@ -46,17 +46,17 @@ class DownloadError(ValueError):
 
 class YoutubeDLLogger(object):
     def debug(self, msg):
-        # logger.debug("[def debug] %s", msg)
+        # logger.debug('[def debug] %s', msg)
         pass
     
     
     def warning(self, msg):
-        # logger.warning("[def warning] %s", msg)
+        # logger.warning('[def warning] %s', msg)
         pass
     
     
     def error(self, msg):
-        logger.error("[def error] %s", msg)
+        logger.error('[def error] %s', msg)
 
 
 class YoutubeVideo(object):

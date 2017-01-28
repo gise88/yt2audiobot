@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, unicode_literals
+from __future__ import unicode_literals, absolute_import
 
 import re
 
-import musixmatch
-import settings
-import spotifyhelper
-import utils
+from yt2audiobot import utils
+from yt2audiobot import settings
+from yt2audiobot import musixmatch
+from yt2audiobot import spotifyhelper
 
 
 class SongMetadata(object):

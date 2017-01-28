@@ -1,16 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 from __future__ import print_function, unicode_literals
 
 import re
 import sys
 import time
 import json
-import traceback
-
+import logging
 import telebot
 import requests
+import traceback
+from emoji import emojize
+
 from yt2audiobot import settings
+from yt2audiobot.ythelper import YTHelper
+from yt2audiobot.ythelper import PlaylistArgumentError
+from yt2audiobot.ythelper import LimitDurationArgumentError
+from yt2audiobot.ythelper import DownloadError
 from yt2audiobot.audiodbmanager import AudioDBController
 from yt2audiobot.usersdbmanager import AuthorizedUser
 from yt2audiobot.usersdbmanager import Admin
@@ -18,30 +25,21 @@ from yt2audiobot.usersdbmanager import Root
 from yt2audiobot.usersdbmanager import UsersDBController
 from yt2audiobot.usersdbmanager import UserAlreadyException
 from yt2audiobot.usersdbmanager import TelegramUser
-from yt2audiobot.ythelper import YTHelper, PlaylistArgumentError, LimitDurationArgumentError, DownloadError
 
-from yt2audiobot.emoji import Emoji
 
-import logging
 
 logger = logging.getLogger(settings.BOT_NAME)
 logger.setLevel(logging.DEBUG)
-
-# create console handler and set level to debug
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-
-# create formatter
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# add formatter to ch
 ch.setFormatter(formatter)
-
-# add ch to logger
 logger.addHandler(ch)
 
-
 YOUTUBE_REGEX = '^((http(s)?:\/\/)?)(www\.)?(m\.)?((youtube\.com\/)|(youtu.be\/))[\S]+'
+
+
+MESSAGE_YOU_HAVE_BEEN_BANNED = emojize('You have been banned because of too many access requests! :expressionless_face:')
 
 
 class ParseException(Exception):
@@ -89,7 +87,6 @@ def start_bot():
                     'Example:\n/addAdmin username or\n/addAdmin 12345678'
     }
     
-    # users_db = UsersDBController()
     UsersDBController.connect_to_db(
         settings.ABS_PATH_USERS_DB,
         settings.BOT_SECRETS['yt2audiobot_root']
@@ -111,7 +108,7 @@ def start_bot():
             'finished': lambda h: 'Download finished: %s\nStart extracting audio postprocess..' % h['_total_bytes_str'],
             'searching_metadata': lambda h: 'Searching audio metadata from Spotify and Musixmatch',
             'upload_audio': lambda h: 'Uploading...',
-            'done': lambda h: 'Done! ' + Emoji.WHITE_HEAVY_CHECK_MARK
+            'done': lambda h: emojize('Done! :white_heavy_check_mark:')
         }
         
         
@@ -159,16 +156,13 @@ def start_bot():
     
     
     def get_start_text(uid):
-        return 'Welcome to %s!! %s\n\nYour Telegram ID is: %d\n\n' \
-               'This code can be used by an admin to add your account to the white list. %s\n' \
-               'If you don\'t know any Admins, who could do this for you, I\'m sorry but ' \
-               'I cannot manage to give the access to the entire world.. %s' % (
-                   bot_me.first_name,
-                   Emoji.VICTORY_HAND,
-                   uid,
-                   Emoji.FLEXED_BICEPS,
-                   Emoji.CRYING_FACE
-               )
+        return emojize('Welcome to %s!! :v:\n\nYour Telegram ID is: %d\n\n'
+                       'This code can be used by an admin to add your account to the white list. :muscle:\n'
+                       'If you don\'t know any Admins, who could do this for you, I\'m sorry but '
+                       'I cannot manage to give the access to the entire world.. :sob:' % (
+                           bot_me.first_name,
+                           uid
+                       ), use_aliases=True)
     
     
     def update_admin_user(m):
@@ -251,7 +245,7 @@ def start_bot():
         root_chat_ids = Root.get_root_chat_id()
         
         if hasattr(message, 'chat') and message.chat.id not in root_chat_ids:
-            bot.reply_to(message, 'Oooops! Something went wrong! ' + Emoji.FACE_WITH_COLD_SWEAT)
+            bot.reply_to(message, emojize('Oooops! Something went wrong! :face_with_cold_sweat:'))
         for chat_id in root_chat_ids:
             if hasattr(message, 'chat') and message.chat.id not in root_chat_ids:
                 bot.forward_message(chat_id, message.chat.id, message.message_id)
@@ -304,8 +298,7 @@ def start_bot():
             try:
                 user = AuthorizedUser.from_telegram_user(m.from_user)
                 if user.is_banned():
-                    start_text = 'You have been banned because of too many access requests! ' + \
-                                 Emoji.EXPRESSIONLESS_FACE
+                    start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
                     sent_message = bot.send_message(cid, start_text)
                     markup.row(btn_visit_github)
                 elif user.is_authorized():
@@ -335,7 +328,7 @@ def start_bot():
             mid = callback_data['mid']
             
             if AuthorizedUser.is_banned_from_telegram_user(call.from_user):
-                start_text = 'You have been banned because of too many access requests! ' + Emoji.EXPRESSIONLESS_FACE
+                start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
                 markup = telebot.types.InlineKeyboardMarkup()
                 markup.add(telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB))
                 bot.edit_message_text(start_text, cid, mid, reply_markup=markup)
@@ -366,11 +359,11 @@ def start_bot():
                     bot.send_message(chat_id, req_text, reply_markup=markup_buttons_root)
                 
                 start_text = get_start_text(uid)
-                start_text += '\n\nAccess requested ' + Emoji.WATCH
+                start_text += emojize('\n\nAccess requested :watch:')
                 markup = telebot.types.InlineKeyboardMarkup()
                 markup.add(telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB))
                 bot.edit_message_text(start_text, cid, mid, reply_markup=markup)
-                bot.answer_callback_query(call.id, text="Access requested")
+                bot.answer_callback_query(call.id, text='Access requested')
             
             # registry user
             try:
@@ -403,24 +396,23 @@ def start_bot():
                 start_text = get_start_text(cid)
                 
                 if clbk_data['act'] == 'agree_user':
-                    start_text += '\n\nAccess agreed!! ' + Emoji.WHITE_HEAVY_CHECK_MARK
+                    start_text += emojize('\n\nAccess agreed!! :white_heavy_check_mark:')
                     try:
                         AuthorizedUser.create(**{ 'telegram_id': cid })
-                        bot.send_message(call.chat.id, 'Done! ' + Emoji.THUMBS_UP_SIGN)
+                        bot.send_message(call.chat.id, 'Done! :thumbs_up_sign:')
                     except UserAlreadyException as e:
-                        bot.send_message(call.chat.id, str(e) + '.. ' + Emoji.NEUTRAL_FACE)
+                        bot.send_message(call.chat.id, emojize('{0}.. :neutral_face:'.format(e)))
                 elif clbk_data['act'] == 'agree_admin':
-                    start_text += '\n\nAccess agreed as admin!! ' + Emoji.PARTY_POPPER
+                    start_text += emojize('\n\nAccess agreed as admin!! :party_popper:')
                     try:
                         Admin.create(**{ 'telegram_id': cid })
-                        bot.send_message(call.chat.id, 'Done! ' + Emoji.THUMBS_UP_SIGN)
+                        bot.send_message(call.chat.id, emojize('Done! :thumb_up_sign:'))
                     except UserAlreadyException as e:
-                        bot.send_message(call.chat.id, str(e) + '.. ' + Emoji.NEUTRAL_FACE)
+                        bot.send_message(call.chat.id, emojize('{0}.. :neutral_face:'.format(e)))
                 elif clbk_data['act'] == 'deny_user':
                     pass
                 elif clbk_data['act'] == 'ban_user':
-                    start_text = 'You have been banned because of too many access requests! ' + \
-                                 Emoji.EXPRESSIONLESS_FACE
+                    start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
                 else:
                     raise Exception('action unknown')
                 
@@ -447,9 +439,9 @@ def start_bot():
                 tg_user = username_or_telegram_id(text)
                 try:
                     class_type.create_from_telegram_user(tg_user)
-                    bot.send_message(cid, 'Done! ' + Emoji.THUMBS_UP_SIGN)
+                    bot.send_message(cid, emojize('Done! :thumb_up_sign:'))
                 except UserAlreadyException as e:
-                    bot.send_message(cid, str(e) + '.. ' + Emoji.NEUTRAL_FACE)
+                    bot.send_message(cid, emojize('{0}.. :neutral_face:'.format(e)))
             except ParseException as e:
                 bot.send_message(cid, str(e))
         except IndexError as e:

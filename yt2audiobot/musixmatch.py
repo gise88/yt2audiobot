@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, unicode_literals
-
-import sys
-from datetime import datetime
-
-import requests
-from telebot.types import JsonDeserializable
-
-import settings
+from __future__ import unicode_literals, absolute_import
 
 import logging
+import requests
+from datetime import datetime
+from telebot.types import JsonDeserializable
+
+
+from yt2audiobot import settings
+
 
 logger = logging.getLogger(settings.BOT_NAME)
 

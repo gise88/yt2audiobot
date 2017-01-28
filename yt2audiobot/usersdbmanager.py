@@ -1,20 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, unicode_literals
-
-from six.moves import input
-import datetime
-
-from yt2audiobot.utils import TermColors
+from __future__ import unicode_literals, absolute_import
 
 import peewee
+import logging
+import datetime
+from six.moves import input
 from playhouse.migrate import *
 
+from yt2audiobot.utils import TermColors
 from yt2audiobot import settings
-
-import logging
-
 
 
 logger = logging.getLogger(settings.BOT_NAME)

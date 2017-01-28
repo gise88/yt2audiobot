@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, unicode_literals
+from __future__ import unicode_literals, absolute_import
 
-
-import settings
-from peewee import *
 import logging
+from peewee import *
+
+from yt2audiobot import settings
 
 
 logger = logging.getLogger(settings.BOT_NAME)
