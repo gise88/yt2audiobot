@@ -3,28 +3,29 @@
 
 from __future__ import print_function, unicode_literals
 
+import json
+import logging
 import re
 import sys
 import time
-import json
-import logging
-import telebot
-import requests
 import traceback
+
+import requests
+import telebot
 from emoji import emojize
 
 from yt2audiobot import settings
-from yt2audiobot.ythelper import YTHelper
-from yt2audiobot.ythelper import PlaylistArgumentError
-from yt2audiobot.ythelper import LimitDurationArgumentError
+from yt2audiobot import dbmanager
+from yt2audiobot.models import Admin
+from yt2audiobot.models import AudioDBController
+from yt2audiobot.models import AuthorizedUser
+from yt2audiobot.models import Root
+from yt2audiobot.models import TelegramUser
+from yt2audiobot.models import UserAlreadyException
 from yt2audiobot.ythelper import DownloadError
-from yt2audiobot.audiodbmanager import AudioDBController
-from yt2audiobot.usersdbmanager import AuthorizedUser
-from yt2audiobot.usersdbmanager import Admin
-from yt2audiobot.usersdbmanager import Root
-from yt2audiobot.usersdbmanager import UsersDBController
-from yt2audiobot.usersdbmanager import UserAlreadyException
-from yt2audiobot.usersdbmanager import TelegramUser
+from yt2audiobot.ythelper import LimitDurationArgumentError
+from yt2audiobot.ythelper import PlaylistArgumentError
+from yt2audiobot.ythelper import YTHelper
 
 
 logger = logging.getLogger(settings.BOT_NAME)
@@ -121,8 +122,8 @@ def start_bot():
         'addAdmin': 'Create a new authorized admin from telegram id or username.\n' + \
                     'Example:\n/addAdmin username or\n/addAdmin 12345678'
     }
-    
-    UsersDBController.connect_to_db(
+
+    dbmanager.connect_to_db(
         settings.ABS_PATH_USERS_DB,
         settings.BOT_SECRETS['yt2audiobot_root']
     )
@@ -574,7 +575,7 @@ if __name__ == '__main__':
             if len(sys.argv) == 1:
                 start_bot()
             elif len(sys.argv) == 2 and sys.argv[1] in create_db_args:
-                UsersDBController.initialize_db(
+                dbmanager.initialize_db(
                     settings.ABS_PATH_USERS_DB,
                     settings.BOT_SECRETS['yt2audiobot_root']
                 )
