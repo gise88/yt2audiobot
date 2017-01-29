@@ -138,8 +138,8 @@ def start_bot():
         STATUS_TO_MESSAGE = {
             'getting_information': lambda h: 'Getting video information',
             'information_downloaded': lambda h: 'Information retrieved! Starting download the %s..' % h['type'],
-            'already_downloaded': lambda h: 'Audio found in the database. Already downloaded %d times' %
-                                            h['downloaded_times'],
+            'already_downloaded': lambda h: 'Audio found in the database. Already downloaded %d %s' %
+                                            (h['downloaded_times'], 'time' if h['downloaded_times'] == 1 else 'times'),
             'downloading': lambda h: '[%s] Downloading at %s' % (h['_percent_str'], h['_speed_str']),
             'finished': lambda h: 'Download finished: %s\nStart extracting audio postprocess..' % h['_total_bytes_str'],
             'searching_metadata': lambda h: 'Searching audio metadata from Spotify and Musixmatch',
@@ -242,8 +242,7 @@ def start_bot():
                             'status': 'already_downloaded',
                             'downloaded_times': yt2tg_mapping.downloaded_times
                         })
-                        bot.send_audio(cid, yt2tg_mapping.telegram_file_id, caption='Downloaded using @yt2audiobot',
-                                       timeout=100)
+                        bot.send_audio(cid, yt2tg_mapping.telegram_file_id, caption='Downloaded using @yt2audiobot')
                         yt2tg_mapping.downloaded_times += 1
                         yt2tg_mapping.save()
                     else:

@@ -124,9 +124,11 @@ class AuthorizedUser(BaseModel):
         data = {
             'telegram_id': tg_user.id,
             'first_name': tg_user.first_name,
-            'last_name': tg_user.last_name,
-            'username': tg_user.username
         }
+        if tg_user.last_name is not None:
+            data['last_name'] = tg_user.last_name
+        if tg_user.username is not None:
+            data['username'] = tg_user.username
         if blocked is not None:
             data['blocked'] = blocked
         if access_requested_count is not None:

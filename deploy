@@ -17,6 +17,12 @@ fi
 # move to working directory
 cd "$(dirname "$0")"
 
+read -p $'\e[93m[WARNING] Already set the correct telegram token? [Y/y to continue]\e[0m ' -n 1 -r
+echo    # move to a new line
+if [[ ! $REPLY =~ ^[Yy]$ ]] ; then
+    [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1
+fi
+
 # some vars
 USER="$1"
 IP="$2"
