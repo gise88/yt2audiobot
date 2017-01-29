@@ -69,12 +69,18 @@ class AuthorizedUser(BaseModel):
                '{username}'.format(s=self, username=self.get_username())
     
     
+    def delete_instance(self, recursive=False, delete_nullable=False):
+        logger.warning('Deleting user: %s', self)
+        return super(AuthorizedUser, self).delete_instance(recursive=recursive, delete_nullable=delete_nullable)
+    
+    
     def get_username(self):
         return '@%s' % self.username if self.username else None
     
     
-    def save(self, *args, **kwargs):
-        self.last_connection = datetime.datetime.now()
+    def save(self, update_last_connection=True, *args, **kwargs):
+        if update_last_connection:
+            self.last_connection = datetime.datetime.now()
         return super(AuthorizedUser, self).save(*args, **kwargs)
     
     
@@ -196,6 +202,11 @@ class Admin(BaseModel):
                'chat_id:{chat_id}'.format(auth_user=self.authorized_user, chat_id=self.chat_id)
     
     
+    def delete_instance(self, recursive=False, delete_nullable=False):
+        logger.warning('Deleting admin: %s', self)
+        return super(Admin, self).delete_instance(recursive=recursive, delete_nullable=delete_nullable)
+    
+    
     @classmethod
     def _select_from_telegram_user(cls, tg_user):
         if tg_user.id is None and tg_user.username is None:
@@ -241,7 +252,7 @@ class Admin(BaseModel):
     
     
     @classmethod
-    def create_from_telegram_user(cls, tg_user, chat_id=None):
+    def create_from_telegram_user(cls, tg_user, chat_id=None, *args):
         user = cls._select_from_telegram_user(tg_user)
         if user is not None:
             raise UserAlreadyException('<%s> already exists: %s' % (cls.__name__, user))

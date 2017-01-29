@@ -27,7 +27,6 @@ from yt2audiobot.usersdbmanager import UserAlreadyException
 from yt2audiobot.usersdbmanager import TelegramUser
 
 
-
 logger = logging.getLogger(settings.BOT_NAME)
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
@@ -38,8 +37,44 @@ logger.addHandler(ch)
 
 YOUTUBE_REGEX = '^((http(s)?:\/\/)?)(www\.)?(m\.)?((youtube\.com\/)|(youtu.be\/))[\S]+'
 
+MESSAGE_YOU_HAVE_BEEN_BANNED = emojize(
+    'You have been banned because of too many access requests! :expressionless_face:')
 
-MESSAGE_YOU_HAVE_BEEN_BANNED = emojize('You have been banned because of too many access requests! :expressionless_face:')
+
+class ExceptionCatcherTeleBot(telebot.TeleBot, object):
+    def __init__(self, token, threaded=True, skip_pending=False):
+        self.exception_handler = None
+        if threaded:
+            # TODO: make ExceptionCatcherTeleBot works with threaded = True
+            raise RuntimeError('ExceptionCatcherTeleBot can works only with threaded = false by now. '
+                               'Future updates will come!')
+        super(ExceptionCatcherTeleBot, self).__init__(token, threaded=threaded, skip_pending=skip_pending)
+    
+    
+    def set_exception_handler(self, exception_handler):
+        if callable(exception_handler):
+            self.exception_handler = exception_handler
+        else:
+            raise TypeError('Exception Handler is not a function')
+    
+    
+    def polling(self, none_stop=False, interval=0, timeout=20):
+        if self.exception_handler is None:
+            raise RuntimeError('Exception Handler has not been specified! Please use: set_exception_handler to set it.')
+        super(ExceptionCatcherTeleBot, self).polling(none_stop=none_stop, interval=interval, timeout=timeout)
+    
+    
+    def _exec_task(self, task, *args, **kwargs):
+        if self.threaded:
+            self.worker_pool.put(task, *args, **kwargs)
+        else:
+    
+            logger.debug(len(args))
+            try:
+                task(*args, **kwargs)
+            except Exception as e:
+                # args[0] contains the message
+                self.exception_handler(args[0], traceback.format_exc())
 
 
 class ParseException(Exception):
@@ -93,8 +128,8 @@ def start_bot():
     )
     audio_db = AudioDBController()
     
-    bot = telebot.TeleBot(settings.BOT_SECRETS['telegram_token'],
-                          threaded=False)  # in the future maybe will be threaded
+    bot = ExceptionCatcherTeleBot(settings.BOT_SECRETS['telegram_token'],
+                                  threaded=False)  # in the future maybe will be threaded
     bot_me = bot.get_me()
     logger.info(bot_me)
     
@@ -243,7 +278,7 @@ def start_bot():
     
     def manage_exception(message, str_exception):
         root_chat_ids = Root.get_root_chat_id()
-        
+        logger.debug(message)
         if hasattr(message, 'chat') and message.chat.id not in root_chat_ids:
             bot.reply_to(message, emojize('Oooops! Something went wrong! :face_with_cold_sweat:'))
         for chat_id in root_chat_ids:
@@ -251,184 +286,15 @@ def start_bot():
                 bot.forward_message(chat_id, message.chat.id, message.message_id)
             bot.send_message(chat_id, str(str_exception))
             logger.error(str_exception)
-    
-    
-    #### TELEGRAM BOT HANDLERS ####
-    
-    
-    @bot.message_handler(commands=['help'])
-    def handle_help(m):
-        try:
-            cid = m.chat.id
-            update_admin_user(m)
-            if AuthorizedUser.is_authorized_from_telegram_user(m.from_user):
-                help_text = 'The following commands are available: \n'
-                for key in user_commands:
-                    help_text += '/%s: %s\n' % (key, user_commands[key])
-                if Admin.exists_from_telegram_user(m.from_user):
-                    for key in admin_commands:
-                        help_text += '/%s: %s\n' % (key, admin_commands[key])
-                    if Root.exists_from_telegram_user(m.from_user):
-                        for key in root_commands:
-                            help_text += '/%s: %s\n' % (key, root_commands[key])
-                
-                bot.send_message(cid, help_text, disable_web_page_preview=True)
-        except Exception:
-            manage_exception(m, traceback.format_exc())
-    
-    
-    @bot.message_handler(commands=['start'])
-    def handle_start(m):
-        m.from_user.id += 1
-        m.from_user.username += '8'
-        try:
-            if not m.chat.type == 'private':
-                bot.reply_to(m, '/start command can only be used in the private chats')
-                return
-            
-            cid = m.chat.id
-            uid = m.from_user.id
-            log_user_start(m.from_user)
-            # TODO: if the user already has the access just print the help message
-            update_admin_user(m)
-            
-            markup = telebot.types.InlineKeyboardMarkup()
-            btn_visit_github = telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB)
-            
-            try:
-                user = AuthorizedUser.from_telegram_user(m.from_user)
-                if user.is_banned():
-                    start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
-                    sent_message = bot.send_message(cid, start_text)
-                    markup.row(btn_visit_github)
-                elif user.is_authorized():
-                    return handle_help(m)
-            except AuthorizedUser.DoesNotExist:
-                start_text = get_start_text(uid)
-                sent_message = bot.send_message(cid, start_text)
-                
-                btn_ask_access = InlineKeyboardButtonActCidMid('Ask for access', 'req_access', cid,
-                                                               sent_message.message_id)
-                markup.row(btn_ask_access, btn_visit_github)
-            
-            bot.edit_message_reply_markup(chat_id=cid, message_id=sent_message.message_id, reply_markup=markup)
-        except Exception:
-            manage_exception(m, traceback.format_exc())
-    
-    
-    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'req_access')
-    def btn_req_access(call):
-        try:
-            # call.from_user.id += 1
-            # call.from_user.username += '8'
-            
-            uid = call.from_user.id
-            callback_data = json.loads(call.data)
-            cid = callback_data['cid']
-            mid = callback_data['mid']
-            
-            if AuthorizedUser.is_banned_from_telegram_user(call.from_user):
-                start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
-                markup = telebot.types.InlineKeyboardMarkup()
-                markup.add(telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB))
-                bot.edit_message_text(start_text, cid, mid, reply_markup=markup)
-            else:
-                callback_data = json.loads(call.data)
-                cid = callback_data['cid']
-                mid = callback_data['mid']
-                
-                markup_buttons_rows = [
-                    [
-                        InlineKeyboardButtonActCidMid('Agree as user', 'agree_user', cid, mid),
-                        InlineKeyboardButtonActCidMid('Agree as admin', 'agree_admin', cid, mid)
-                    ],
-                    [
-                        InlineKeyboardButtonActCidMid('Deny', 'deny_user', cid, mid),
-                        InlineKeyboardButtonActCidMid('Ban!', 'ban_user', cid, mid)
-                    ]
-                ]
-                
-                markup_buttons_root = telebot.types.InlineKeyboardMarkup()
-                for row in markup_buttons_rows:
-                    markup_buttons_root.add(*row)
-                
-                root_chat_ids = Root.get_root_chat_id()
-                for chat_id in root_chat_ids:
-                    req_text = 'The user:\n%s\nrequests the access to use %s!' % \
-                               (stringify_user(call.from_user), bot_me.username)
-                    bot.send_message(chat_id, req_text, reply_markup=markup_buttons_root)
-                
-                start_text = get_start_text(uid)
-                start_text += emojize('\n\nAccess requested :watch:')
-                markup = telebot.types.InlineKeyboardMarkup()
-                markup.add(telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB))
-                bot.edit_message_text(start_text, cid, mid, reply_markup=markup)
-                bot.answer_callback_query(call.id, text='Access requested')
-            
-            # registry user
-            try:
-                auth_user = AuthorizedUser.from_telegram_user(call.from_user)
-                if auth_user.blocked:
-                    auth_user.access_requested_count += 1
-                    auth_user.save()
-            except AuthorizedUser.DoesNotExist:
-                AuthorizedUser.create_from_telegram_user(
-                    call.from_user,
-                    blocked=True,
-                    access_requested_count=1
-                )
         
-        except Exception:
-            manage_exception(call, traceback.format_exc())
-    
-    
-    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'agree_user')
-    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'agree_admin')
-    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'deny_user')
-    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'ban_user')
-    def btn_give_access(call):
-        try:
-            if Root.exists_from_telegram_user(call.from_user):
-                
-                clbk_data = json.loads(call.data)
-                cid = clbk_data['cid']
-                mid = clbk_data['mid']
-                start_text = get_start_text(cid)
-                
-                if clbk_data['act'] == 'agree_user':
-                    start_text += emojize('\n\nAccess agreed!! :white_heavy_check_mark:')
-                    try:
-                        AuthorizedUser.create(**{ 'telegram_id': cid })
-                        bot.send_message(call.chat.id, 'Done! :thumbs_up_sign:')
-                    except UserAlreadyException as e:
-                        bot.send_message(call.chat.id, emojize('{0}.. :neutral_face:'.format(e)))
-                elif clbk_data['act'] == 'agree_admin':
-                    start_text += emojize('\n\nAccess agreed as admin!! :party_popper:')
-                    try:
-                        Admin.create(**{ 'telegram_id': cid })
-                        bot.send_message(call.chat.id, emojize('Done! :thumb_up_sign:'))
-                    except UserAlreadyException as e:
-                        bot.send_message(call.chat.id, emojize('{0}.. :neutral_face:'.format(e)))
-                elif clbk_data['act'] == 'deny_user':
-                    pass
-                elif clbk_data['act'] == 'ban_user':
-                    start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
-                else:
-                    raise Exception('action unknown')
-                
-                markup = telebot.types.InlineKeyboardMarkup()
-                markup.add(telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB))
-                bot.edit_message_text(start_text, cid, mid, reply_markup=markup)
-            else:
-                bot.send_message(call.chat.id, 'This command can only be used by admin users')
-                root_chat_ids = Root.get_root_chat_id()
-                for chat_id in root_chat_ids:
-                    warning_text = '[WARNING] The user:\n%s\ntries to send a callback query!\n\n' \
-                                   'json dump of the message:\n%s' % (stringify_user(call.from_user), json.dumps(call))
-                    bot.send_message(chat_id, warning_text)
         
-        except Exception:
-            manage_exception(call, traceback.format_exc())
+    def remove_admin(root_cid, admin_user, auth_user):
+        msg = bot.send_message(root_cid, emojize(
+            'Going to downgrade the Admin: {0} :smirking_face:\n'.format(admin_user)))
+        deleted_rows = admin_user.delete_instance()
+        bot.edit_message_text(emojize(
+            'Done! Downgraded successfully for user: {0} :thumbs_up_sign: \n'
+            '(deleted rows: {1})'.format(auth_user, deleted_rows)), root_cid, msg.message_id)
     
     
     def add_user_from_type(m, class_type):
@@ -438,7 +304,7 @@ def start_bot():
             try:
                 tg_user = username_or_telegram_id(text)
                 try:
-                    class_type.create_from_telegram_user(tg_user)
+                    class_type.create_from_telegram_user(tg_user, blocked=False, access_requested_count=0)
                     bot.send_message(cid, emojize('Done! :thumb_up_sign:'))
                 except UserAlreadyException as e:
                     bot.send_message(cid, emojize('{0}.. :neutral_face:'.format(e)))
@@ -448,38 +314,221 @@ def start_bot():
             pass
     
     
+    #### TELEGRAM BOT HANDLERS ####
+    
+    
+    @bot.message_handler(commands=['help'])
+    def handle_help(m):
+        cid = m.chat.id
+        update_admin_user(m)
+        if AuthorizedUser.is_authorized_from_telegram_user(m.from_user):
+            help_text = 'The following commands are available: \n'
+            for key in user_commands:
+                help_text += '/%s: %s\n' % (key, user_commands[key])
+            if Admin.exists_from_telegram_user(m.from_user):
+                for key in admin_commands:
+                    help_text += '/%s: %s\n' % (key, admin_commands[key])
+                if Root.exists_from_telegram_user(m.from_user):
+                    for key in root_commands:
+                        help_text += '/%s: %s\n' % (key, root_commands[key])
+            
+            bot.send_message(cid, help_text, disable_web_page_preview=True)
+    
+    
+    @bot.message_handler(commands=['start'])
+    def handle_start(m):
+        if not m.chat.type == 'private':
+            bot.reply_to(m, '/start command can only be used in the private chats')
+            return
+        
+        cid = m.chat.id
+        uid = m.from_user.id
+        log_user_start(m.from_user)
+        # TODO: if the user already has the access just print the help message
+        update_admin_user(m)
+        
+        markup = telebot.types.InlineKeyboardMarkup()
+        btn_visit_github = telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB)
+        
+        try:
+            user = AuthorizedUser.from_telegram_user(m.from_user)
+            logger.debug(user)
+            if user.is_banned():
+                start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
+                sent_message = bot.send_message(cid, start_text)
+                markup.row(btn_visit_github)
+            elif user.is_authorized():
+                return handle_help(m)
+        except AuthorizedUser.DoesNotExist:
+            start_text = get_start_text(uid)
+            sent_message = bot.send_message(cid, start_text)
+            btn_ask_access = InlineKeyboardButtonActCidMid('Ask for access', 'req_access', cid,
+                                                           sent_message.message_id)
+            markup.row(btn_ask_access, btn_visit_github)
+        
+        bot.edit_message_reply_markup(chat_id=cid, message_id=sent_message.message_id, reply_markup=markup)
+    
+    
+    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'req_access')
+    def btn_req_access(call):
+        uid = call.from_user.id
+        callback_data = json.loads(call.data)
+        cid = callback_data['cid']
+        mid = callback_data['mid']
+        
+        if AuthorizedUser.is_banned_from_telegram_user(call.from_user):
+            start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
+            markup = telebot.types.InlineKeyboardMarkup()
+            markup.add(telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB))
+            bot.edit_message_text(start_text, cid, mid, reply_markup=markup)
+        else:
+            callback_data = json.loads(call.data)
+            cid = callback_data['cid']
+            mid = callback_data['mid']
+            
+            markup_buttons_rows = [
+                [
+                    InlineKeyboardButtonActCidMid('Agree as user', 'agree_user', cid, mid),
+                    InlineKeyboardButtonActCidMid('Agree as admin', 'agree_admin', cid, mid)
+                ],
+                [
+                    InlineKeyboardButtonActCidMid('Deny', 'deny_user', cid, mid),
+                    InlineKeyboardButtonActCidMid('Ban!', 'ban_user', cid, mid)
+                ]
+            ]
+            
+            markup_buttons_root = telebot.types.InlineKeyboardMarkup()
+            for row in markup_buttons_rows:
+                markup_buttons_root.add(*row)
+            
+            root_chat_ids = Root.get_root_chat_id()
+            for chat_id in root_chat_ids:
+                req_text = 'The user:\n%s\nrequests the access to use %s!' % \
+                           (stringify_user(call.from_user), bot_me.username)
+                bot.send_message(chat_id, req_text, reply_markup=markup_buttons_root)
+            
+            start_text = get_start_text(uid)
+            start_text += emojize('\n\nAccess requested :watch:')
+            markup = telebot.types.InlineKeyboardMarkup()
+            markup.add(telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB))
+            bot.edit_message_text(start_text, cid, mid, reply_markup=markup)
+            bot.answer_callback_query(call.id, text='Access requested')
+        
+        # registry user
+        try:
+            auth_user = AuthorizedUser.from_telegram_user(call.from_user)
+            if auth_user.blocked:
+                auth_user.access_requested_count += 1
+                auth_user.save()
+        except AuthorizedUser.DoesNotExist:
+            AuthorizedUser.create_from_telegram_user(
+                call.from_user,
+                blocked=True,
+                access_requested_count=1
+            )
+    
+    
+    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'agree_user')
+    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'agree_admin')
+    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'deny_user')
+    @bot.callback_query_handler(func=lambda call: json.loads(call.data)['act'] == 'ban_user')
+    def btn_give_access(call):
+        callback_data = json.loads(call.data)
+        user_cid = callback_data['cid']
+        user_mid = callback_data['mid']
+        root_cid = call.message.chat.id
+        start_text = get_start_text(user_cid)
+        tg_user = TelegramUser(user_cid, None, None, None)
+        
+        # check if the user who press the button is root and make sure that the target is not the root
+        if Root.exists_from_telegram_user(call.from_user) and not Root.exists_from_telegram_user(tg_user):
+            
+            try:
+                # if the user doesn't exist it will raise an exception.
+                auth_user = AuthorizedUser.from_telegram_user(tg_user)
+                admin_user = Admin.from_telegram_user(tg_user, dont_raise=True)
+                
+                if callback_data['act'] in ['agree_user', 'agree_admin']:
+                    
+                    if callback_data['act'] == 'agree_user':
+                        start_text += emojize('\n\nAccess agreed!! :white_heavy_check_mark:')
+                        if admin_user is None:
+                            bot.send_message(root_cid, emojize('Done! :thumbs_up_sign: \n'
+                                                               '(already: {0})'.format(auth_user.blocked)))
+                        
+                        # if he/she was an admin and not the root needs to be removed
+                        else:
+                            remove_admin(root_cid, admin_user, auth_user)
+                    
+                    elif callback_data['act'] == 'agree_admin':
+                        start_text += emojize('\n\nAccess agreed as admin!! :party_popper:')
+                        try:
+                            # Since I get the cid from a private chat uid = cid
+                            Admin.create_from_telegram_user(tg_user, chat_id=user_cid)
+                            bot.send_message(root_cid, emojize('Done! :thumbs_up_sign:'))
+                        except UserAlreadyException as e:
+                            bot.send_message(root_cid, emojize('{0}.. :neutral_face:'.format(e)))
+                    
+                    auth_user.blocked = False
+                    auth_user.access_requested_count = 0
+                    auth_user.save()
+                
+                elif callback_data['act'] in ['deny_user', 'ban_user']:
+                    if admin_user is not None:
+                        remove_admin(root_cid, admin_user, auth_user)
+                    
+                    auth_user.blocked = True
+                    if callback_data['act'] == 'ban_user':
+                        auth_user.access_requested_count = settings.REQUESTED_ACCESS_FOR_BAN + 1
+                        start_text = MESSAGE_YOU_HAVE_BEEN_BANNED
+                    
+                    bot.send_message(root_cid, emojize('Done! :thumbs_up_sign:'))
+                    auth_user.save()
+                else:
+                    raise Exception('Action unknown: {0}'.format(callback_data['act']))
+                
+                try:
+                    markup = telebot.types.InlineKeyboardMarkup()
+                    markup.add(telebot.types.InlineKeyboardButton('Github', url=settings.URL_REPO_GITHUB))
+                    bot.edit_message_text(start_text, user_cid, user_mid, reply_markup=markup)
+                except telebot.apihelper.ApiException as e:
+                    if 'message is not modified' not in json.loads(e.result.text)['description']:
+                        raise e
+            except AuthorizedUser.DoesNotExist as e:
+                bot.send_message(root_cid, emojize('{0}.. :neutral_face:'.format(e)))
+        
+        elif not Root.exists_from_telegram_user(call.from_user):
+            bot.send_message(call.message.chat.id, 'This command can only be used by admin users')
+            root_chat_ids = Root.get_root_chat_id()
+            for chat_id in root_chat_ids:
+                warning_text = '[WARNING] The user:\n%s\ntries to send a callback query!\n\n' \
+                               'call.data:\n%s' % (stringify_user(call.from_user), call.data)
+                bot.send_message(chat_id, warning_text)
+    
+    
     @bot.message_handler(commands=['addUser', 'adduser'])
     def handle_add_user(m):
-        try:
-            if Admin.exists_from_telegram_user(m.from_user):
-                add_user_from_type(m, AuthorizedUser)
-            else:
-                bot.send_message(m.chat.id, 'This command can be used only by admin users')
-        except Exception:
-            manage_exception(m, traceback.format_exc())
+        if Admin.exists_from_telegram_user(m.from_user):
+            add_user_from_type(m, AuthorizedUser)
+        else:
+            bot.send_message(m.chat.id, 'This command can be used only by admin users')
     
     
     @bot.message_handler(commands=['addAdmin', 'addadmin'])
     def handle_add_admin(m):
-        try:
-            cid = m.chat.id
-            if Root.exists_from_telegram_user(m.from_user):
-                update_admin_user(m)
-                add_user_from_type(m, Admin)
-            else:
-                bot.send_message(cid, 'This command can be used only by root user')
-        except Exception:
-            manage_exception(m, traceback.format_exc())
+        cid = m.chat.id
+        if Root.exists_from_telegram_user(m.from_user):
+            update_admin_user(m)
+            add_user_from_type(m, Admin)
+        else:
+            bot.send_message(cid, 'This command can be used only by root user')
     
     
     @bot.message_handler(regexp=YOUTUBE_REGEX, func=lambda m: m.chat.type == 'private')
     def handle_youtube_link_regex(m):
-        try:
-            if AuthorizedUser.is_authorized_from_telegram_user(m.from_user):
-                update_admin_user(m)
-                handle_youtube_link(m)
-        except Exception:
-            manage_exception(m, traceback.format_exc())
+        if AuthorizedUser.is_authorized_from_telegram_user(m.from_user):
+            update_admin_user(m)
+            handle_youtube_link(m)
     
     
     get_mp3_commands_array = ['getMp3', 'getmp3', 'mp3']
@@ -487,25 +536,23 @@ def start_bot():
     
     @bot.message_handler(commands=get_mp3_commands_array)
     def handle_youtube_link_commands(m):
-        try:
-            if AuthorizedUser.is_authorized_from_telegram_user(m.from_user):
-                update_admin_user(m)
-                if '@' + bot_me.username in m.text:
-                    m.text = m.text.replace('@' + bot_me.username, '')
-                if len(m.text.split(' ')) == 2:
-                    m.text = m.text.split(' ', 1)[1]
-                else:
-                    for command in get_mp3_commands_array:
-                        m.text = m.text.replace(command, '')
-                
-                handle_youtube_link(m)
-        except Exception:
-            manage_exception(m, traceback.format_exc())
+        if AuthorizedUser.is_authorized_from_telegram_user(m.from_user):
+            update_admin_user(m)
+            if '@' + bot_me.username in m.text:
+                m.text = m.text.replace('@' + bot_me.username, '')
+            if len(m.text.split(' ')) == 2:
+                m.text = m.text.split(' ', 1)[1]
+            else:
+                for command in get_mp3_commands_array:
+                    m.text = m.text.replace(command, '')
+            
+            handle_youtube_link(m)
     
     
     while True:
         try:
             logger.info('bot.polling')
+            bot.set_exception_handler(manage_exception)
             bot.polling(none_stop=True, interval=3)
         except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as e:
             logger.error(e)
