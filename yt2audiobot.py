@@ -454,7 +454,7 @@ def start_bot():
                         start_text += emojize('\n\nAccess agreed!! :white_heavy_check_mark:')
                         if admin_user is None:
                             bot.send_message(root_cid, emojize('Done! :thumbs_up_sign: \n'
-                                                               '(already: {0})'.format(auth_user.blocked)))
+                                                               '(already was an auth user: {0})'.format(not auth_user.blocked)))
                         
                         # if he/she was an admin and not the root needs to be removed
                         else:
