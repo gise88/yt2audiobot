@@ -23,8 +23,7 @@ from yt2audiobot.models import Root
 from yt2audiobot.models import TelegramUser
 from yt2audiobot.models import UserAlreadyException
 from yt2audiobot.ythelper import DownloadError
-from yt2audiobot.ythelper import LimitDurationArgumentError
-from yt2audiobot.ythelper import PlaylistArgumentError
+from yt2audiobot.ythelper import FileIsTooLargeException
 from yt2audiobot.ythelper import YTHelper
 
 
@@ -228,49 +227,46 @@ def start_bot():
         r = re.search(YOUTUBE_REGEX, m.text)
         if r is not None:
             youtube_url = r.group(0)
-            try:
-                reply_message = bot.reply_to(m, 'Managing your request...')
-                yth_progress_hook = YTHelperProgressHook(bot, cid, reply_message.message_id)
-                yt_helper = YTHelper(youtube_url, yth_progress_hook.get_progress_hook())
-                
-                for ytvideo in yt_helper.manage_url():
-                    youtube_id = ytvideo.get_youtube_id()
-                    yt2tg_mapping, _ = audio_db.search_by_youtube_or_telegram_file(youtube_id=youtube_id)
-                    
-                    if yt2tg_mapping:
-                        yth_progress_hook.notify_progress({
-                            'status': 'already_downloaded',
-                            'downloaded_times': yt2tg_mapping.downloaded_times
-                        })
-                        bot.send_audio(cid, yt2tg_mapping.telegram_file_id, caption='Downloaded using @yt2audiobot')
-                        yt2tg_mapping.downloaded_times += 1
-                        yt2tg_mapping.save()
-                    else:
-                        try:
-                            data = ytvideo.download_video_and_extract_audio()
-                            audio = open(data['filename'], 'rb')
-                            yth_progress_hook.notify_progress({
-                                'status': 'upload_audio'
-                            })
-                            bot.send_chat_action(cid, 'upload_audio')
-                            audio_message = bot.send_audio(cid, audio, caption='Downloaded using @yt2audiobot').audio
-                            data['youtube_id'] = youtube_id
-                            data['telegram_file_id'] = audio_message.file_id
-                            data['file_size'] = audio_message.file_size
-                            data['duration'] = audio_message.duration
-                            audio_db.add_youtube_telegram_file_entry_and_metadata(**data)
-                        except DownloadError as e:
-                            logger.error('[DownloadError] %s', e)
-                            bot.send_message(cid, str(e))
-                
-                yth_progress_hook.notify_progress({
-                    'status': 'done'
-                })
+            reply_message = bot.reply_to(m, 'Managing your request...')
+            yth_progress_hook = YTHelperProgressHook(bot, cid, reply_message.message_id)
+            yt_helper = YTHelper(youtube_url, yth_progress_hook.get_progress_hook())
             
-            except PlaylistArgumentError as e:
-                bot.send_message(cid, 'I\'m sorry! ' + str(e))
-            except LimitDurationArgumentError as e:
-                bot.send_message(cid, 'I\'m sorry! ' + str(e))
+            for ytvideo in yt_helper.manage_url():
+                youtube_id = ytvideo.get_youtube_id()
+                yt2tg_mapping, _ = audio_db.search_by_youtube_or_telegram_file(youtube_id=youtube_id)
+                
+                if yt2tg_mapping:
+                    yth_progress_hook.notify_progress({
+                        'status': 'already_downloaded',
+                        'downloaded_times': yt2tg_mapping.downloaded_times
+                    })
+                    bot.send_audio(cid, yt2tg_mapping.telegram_file_id, caption='Downloaded using @yt2audiobot')
+                    yt2tg_mapping.downloaded_times += 1
+                    yt2tg_mapping.save()
+                else:
+                    try:
+                        data = ytvideo.download_video_and_extract_audio()
+                        audio = open(data['filename'], 'rb')
+                        yth_progress_hook.notify_progress({
+                            'status': 'upload_audio'
+                        })
+                        bot.send_chat_action(cid, 'upload_audio')
+                        audio_message = bot.send_audio(cid, audio, caption='Downloaded using @yt2audiobot').audio
+                        data['youtube_id'] = youtube_id
+                        data['telegram_file_id'] = audio_message.file_id
+                        data['file_size'] = audio_message.file_size
+                        data['duration'] = audio_message.duration
+                        audio_db.add_youtube_telegram_file_entry_and_metadata(**data)
+                    except DownloadError as e:
+                        logger.error('[Download Error] %s', e)
+                        bot.send_message(cid, str(e))
+                    except FileIsTooLargeException as e:
+                        logger.error('[File Is Too Large] %s', e)
+                        bot.send_message(cid, str(e), disable_web_page_preview=True)
+            
+            yth_progress_hook.notify_progress({
+                'status': 'done'
+            })
         
         else:
             bot.send_message(cid, 'Sorry, it is not a valid youtube link!')

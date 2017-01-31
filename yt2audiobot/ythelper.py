@@ -32,11 +32,7 @@ logger = logging.getLogger(settings.BOT_NAME)
 # }
 
 
-class PlaylistArgumentError(ValueError):
-    pass
-
-
-class LimitDurationArgumentError(ValueError):
+class FileIsTooLargeException(ValueError):
     pass
 
 
@@ -125,6 +121,15 @@ class YoutubeVideo(object):
             self._progress_hook({
                 'status': 'searching_metadata'
             }, youtube_video=self)
+            
+            filename = self._get_downloaded_file_abspath()
+            # if the extracted audio file is larger than 50M
+            filesize = os.path.getsize(filename)
+            if filesize >> 20 > 50:
+                raise FileIsTooLargeException(
+                    'I am sorry. Telegram bots can currently send files of any type of up to 50 MB in size. '
+                    'https://core.telegram.org/bots/faq#how-do-i-upload-a-large-file\n '
+                    'This audio file is %s!' % utils.format_size(filesize))
             
             metadata = metadatahelper.metadata_from_title(self.get_video_title())
             return {

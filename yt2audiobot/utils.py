@@ -38,3 +38,13 @@ def rename_file(old_filename, new_filename):
     temp_filename = os.path.join(full_path, new_filename + extension)
     os.rename(old_filename, temp_filename)
     return temp_filename
+
+
+def format_size(size):
+    units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB']
+    size = float(size)
+    i = 0
+    while size >= 1024.0 and i < len(units):
+        i += 1
+        size /= 1024.0
+    return "%.2f %s" % (size, units[i])
