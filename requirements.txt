@@ -8,4 +8,4 @@ pyTelegramBotAPI==2.3.0
 requests==2.12.5
 six==1.10.0
 spotipy==2.4.4
-youtube-dl==2017.1.22
+youtube-dl==2017.1.31
