@@ -76,6 +76,7 @@ class YoutubeVideo(object):
             'retries': 10,
             'logger': YoutubeDLLogger(),
             'progress_hooks': [self._private_progress_hook],
+            'prefer_ffmpeg': True
         }
         
         self._video_id = video_id

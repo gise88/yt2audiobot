@@ -41,7 +41,7 @@ class SongMetadata(object):
             text = text + ' (' + str(self.first_release_date.year) + ')'
         if printalbum and self.album is not None:
             text = text + ', ' + self.album
-        return text.encode('utf-8')
+        return text
     
     
     def to_filename(self):

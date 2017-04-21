@@ -5,6 +5,11 @@ from __future__ import unicode_literals
 
 import re
 import os
+import logging
+import unicodedata
+import settings
+
+logger = logging.getLogger(settings.BOT_NAME)
 
 
 class TermColors:
@@ -18,6 +23,11 @@ class TermColors:
     UNDERLINE = '\033[4m'
 
 
+def strip_accents(s):
+    return ''.join(c for c in unicodedata.normalize('NFD', s)
+                   if unicodedata.category(c) != 'Mn')
+
+
 # thanks to django: https://github.com/django/django/blob/master/django/utils/text.py
 def get_valid_filename(s):
     """
@@ -28,8 +38,9 @@ def get_valid_filename(s):
     >>> get_valid_filename("john's portrait in 2004.jpg")
     'Johns Portrait In 2004.jpg'
     """
-    s = s.decode('utf-8', 'ignore')
-    return re.sub(r'(?u)[^-\w. ]', '', s).title()
+    s = re.sub(r'(?u)[^-\w. ]', '', s).title()[:80]
+    s = strip_accents(s)
+    return s
 
 
 def rename_file(old_filename, new_filename):
