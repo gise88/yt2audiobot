@@ -139,7 +139,8 @@ class YoutubeVideo(object):
                 'album': metadata.album,
                 'track_number': metadata.track_number,
                 'first_release_date': metadata.first_release_date,
-                'filename': utils.rename_file(self._get_downloaded_file_abspath(), metadata.to_filename())
+                'filename': utils.rename_file(self._get_downloaded_file_abspath(), 
+                                              '{0}_{1}'.format(metadata.to_filename(), self.get_youtube_id()))
             }
         except ytdl.utils.DownloadError as e:
             raise DownloadError('Failed downloading video: %s\n%s' % (self.__str__(), e))

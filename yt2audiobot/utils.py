@@ -38,8 +38,12 @@ def get_valid_filename(s):
     >>> get_valid_filename("john's portrait in 2004.jpg")
     'Johns Portrait In 2004.jpg'
     """
-    s = re.sub(r'(?u)[^-\w. ]', '', s).title()[:80]
+
     s = strip_accents(s)
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore')
+    s = re.sub('[^\w\s-]', '', s).strip().lower().title()[:80]
+    
+    #
     return s
 
 
