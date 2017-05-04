@@ -7,7 +7,7 @@ import re
 import os
 import logging
 import unicodedata
-import settings
+from yt2audiobot import settings
 
 logger = logging.getLogger(settings.BOT_NAME)
 
