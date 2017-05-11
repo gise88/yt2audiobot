@@ -136,11 +136,11 @@ def write_metadata(metadata, mp3_file, thumbnail):
         audiofile['date'] = str(metadata.first_release_date)
     audiofile.save()
     
-    audiofile = MP3(mp3_file)
-    audiofile.tags.add(APIC(encoding=3,
-                            mime=thumbnail.mimetype,
-                            type=PictureType.COVER_FRONT,
-                            desc=u'Cover Front',
-                            data=open(thumbnail.filename).read()))
+    if thumbnail is not None:
+        audiofile = MP3(mp3_file)
+        audiofile.tags.add(APIC(encoding=3,
+                                mime=thumbnail.mimetype,
+                                type=PictureType.COVER_FRONT,
+                                desc=u'Cover Front',
+                                data=open(thumbnail.filename).read()))
     audiofile.save()
-
