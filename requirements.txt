@@ -1,6 +1,7 @@
 appdirs==1.4.3
 emoji==0.3.9
 future==0.16.0
+mutagen==1.37
 packaging==16.8
 peewee==2.8.5
 pyparsing==2.1.10
