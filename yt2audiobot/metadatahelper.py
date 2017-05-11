@@ -3,7 +3,12 @@
 
 from __future__ import unicode_literals, absolute_import
 
+import os
 import re
+
+from mutagen.mp3 import MP3, EasyMP3
+from mutagen.id3 import error, PictureType
+from mutagen.id3._frames import APIC
 
 from yt2audiobot import utils
 from yt2audiobot import settings
@@ -111,3 +116,31 @@ def metadata_from_title(orig_title):
         'title': orig_title
     }
     return SongMetadata(data)
+
+
+def write_metadata(metadata, mp3_file, thumbnail):
+    audiofile = EasyMP3(mp3_file)
+    try:
+        audiofile.add_tags()
+    except error:
+        pass
+    
+    audiofile['title'] = metadata.title
+    if metadata.author:
+        audiofile['artist'] = metadata.author
+    if metadata.album:
+        audiofile['album'] = metadata.album
+    if metadata.track_number != 0:
+        audiofile['tracknumber'] = str(metadata.track_number)
+    if metadata.first_release_date:
+        audiofile['date'] = str(metadata.first_release_date)
+    audiofile.save()
+    
+    audiofile = MP3(mp3_file)
+    audiofile.tags.add(APIC(encoding=3,
+                            mime=thumbnail.mimetype,
+                            type=PictureType.COVER_FRONT,
+                            desc=u'Cover Front',
+                            data=open(thumbnail.filename).read()))
+    audiofile.save()
+

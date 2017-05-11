@@ -5,11 +5,13 @@ from __future__ import unicode_literals, absolute_import
 
 import os
 import logging
+import requests
 import youtube_dl as ytdl
 
 from yt2audiobot import utils
 from yt2audiobot import settings
 from yt2audiobot import metadatahelper
+
 
 
 logger = logging.getLogger(settings.BOT_NAME)
@@ -104,6 +106,29 @@ class YoutubeVideo(object):
         return self._info['title']
     
     
+    def get_video_thumbnails(self):
+        return map(lambda x: x['url'], self._info['thumbnails'])
+    
+    
+    def download_thumbnail(self, index):
+        thumbnail = self.get_video_thumbnails()[index]
+        output = os.path.abspath(os.path.join(settings.AUDIO_OUTPUT_DIR, 'thumb_{0}'.format(self.get_youtube_id())))
+        
+        r = requests.get(thumbnail, stream=True)
+        if r.status_code == 200:
+            with open(output, 'wb') as f:
+                for chunk in r:
+                    f.write(chunk)
+        
+        class Thumbnail(object):
+            def __init__(self, url, filename, mimetype):
+                self.url = url
+                self.filename = filename
+                self.mimetype = mimetype
+        
+        return Thumbnail(thumbnail, output, r.headers['Content-Type'])
+    
+    
     def is_part_of_playlist(self):
         return self._info['playlist_index'] is not None
     
@@ -123,7 +148,14 @@ class YoutubeVideo(object):
                 'status': 'searching_metadata'
             }, youtube_video=self)
             
-            filename = self._get_downloaded_file_abspath()
+            metadata = metadatahelper.metadata_from_title(self.get_video_title())
+            
+            logger.debug(self._get_downloaded_file_abspath())
+            logger.debug('{0}_{1}'.format(metadata.to_filename(), self.get_youtube_id()))
+            
+            filename = utils.rename_file(self._get_downloaded_file_abspath(),
+                                         '{0}_{1}'.format(metadata.to_filename(), self.get_youtube_id()))
+            
             # if the extracted audio file is larger than 50M
             filesize = os.path.getsize(filename)
             if filesize >> 20 > 50:
@@ -131,16 +163,18 @@ class YoutubeVideo(object):
                     'I am sorry. Telegram bots can currently send files of any type of up to 50 MB in size. '
                     'https://core.telegram.org/bots/faq#how-do-i-upload-a-large-file\n '
                     'This audio file is %s!' % utils.format_size(filesize))
+
+            thumbnail = self.download_thumbnail(-1) if len(self.get_video_thumbnails()) > 0 else None
+            metadatahelper.write_metadata(metadata, filename, thumbnail)
+            os.remove(thumbnail.filename)
             
-            metadata = metadatahelper.metadata_from_title(self.get_video_title())
             return {
                 'title': metadata.title,
                 'author': metadata.author,
                 'album': metadata.album,
                 'track_number': metadata.track_number,
                 'first_release_date': metadata.first_release_date,
-                'filename': utils.rename_file(self._get_downloaded_file_abspath(), 
-                                              '{0}_{1}'.format(metadata.to_filename(), self.get_youtube_id()))
+                'filename': filename
             }
         except ytdl.utils.DownloadError as e:
             raise DownloadError('Failed downloading video: %s\n%s' % (self.__str__(), e))
