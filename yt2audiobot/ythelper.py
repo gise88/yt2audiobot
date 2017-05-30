@@ -13,7 +13,6 @@ from yt2audiobot import settings
 from yt2audiobot import metadatahelper
 
 
-
 logger = logging.getLogger(settings.BOT_NAME)
 
 
@@ -32,6 +31,9 @@ logger = logging.getLogger(settings.BOT_NAME)
 #     'formats',
 #     'extractor'
 # }
+
+def init_spotify():
+    metadatahelper.spotifyhelper.Spotify.authenticate()
 
 
 class FileIsTooLargeException(ValueError):

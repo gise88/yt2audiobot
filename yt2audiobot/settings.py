@@ -52,5 +52,7 @@ BAD_WORDS = [
 BOT_SECRETS = {
     'yt2audiobot_root': '',
     'telegram_token': '',
-    'musixmatch_key': ''
+    'musixmatch_key': '',
+    'spotify_client_id': '',
+    'spotify_client_secret': '',
 }

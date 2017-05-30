@@ -25,6 +25,7 @@ from yt2audiobot.models import UserAlreadyException
 from yt2audiobot.ythelper import DownloadError
 from yt2audiobot.ythelper import FileIsTooLargeException
 from yt2audiobot.ythelper import YTHelper
+from yt2audiobot.spotifyhelper import Spotify
 
 
 logger = logging.getLogger(settings.BOT_NAME)
@@ -567,6 +568,11 @@ if __name__ == '__main__':
             settings.BOT_SECRETS['yt2audiobot_root'] = f.readline().strip()
             settings.BOT_SECRETS['telegram_token'] = f.readline().strip()
             settings.BOT_SECRETS['musixmatch_key'] = f.readline().strip()
+            settings.BOT_SECRETS['spotify_client_id'] = f.readline().strip()
+            settings.BOT_SECRETS['spotify_client_secret'] = f.readline().strip()
+
+            Spotify.authenticate()
+            
             if len(sys.argv) == 1:
                 start_bot()
             elif len(sys.argv) == 2 and sys.argv[1] in create_db_args:

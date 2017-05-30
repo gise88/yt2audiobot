@@ -20,7 +20,8 @@ Create a file named `SECRETS.txt` in the root folder based of `EXAMPLE_SECRETS.t
 1. Your telegram username so you can be the root of your bot and can add other users or admins
 2. The bot access token! Get it simply by talking to [BotFather](https://telegram.me/botfather) and follow a few simple [steps](https://core.telegram.org/bots#6-botfather)
 3. The musixmatch api key obtainable by registering at this [link](https://developer.musixmatch.com/)
-
+4. The spotify [application](https://developer.spotify.com/my-applications/) Client ID
+5. The spotify [application](https://developer.spotify.com/my-applications/) Client Secret
 
 #### Running:
 Just use `./startstop` to run it or stop it. You can also add `start/stop` parameter.

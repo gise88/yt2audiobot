@@ -3,7 +3,6 @@
 
 from __future__ import unicode_literals, absolute_import
 
-import os
 import re
 
 from mutagen.mp3 import MP3, EasyMP3
@@ -13,7 +12,7 @@ from mutagen.id3._frames import APIC
 from yt2audiobot import utils
 from yt2audiobot import settings
 from yt2audiobot import musixmatch
-from yt2audiobot import spotifyhelper
+from yt2audiobot.spotifyhelper import Spotify
 
 
 class SongMetadata(object):
@@ -90,7 +89,7 @@ def metadata_from_title(orig_title):
                 track_number = 0
                 if r.track_spotify_id:
                     try:
-                        track_number = spotifyhelper.request_track(r.track_spotify_id)['track_number']
+                        track_number = Spotify.request_track(r.track_spotify_id)['track_number']
                     except:
                         pass
                     data = {
@@ -102,7 +101,7 @@ def metadata_from_title(orig_title):
                     }
                     return SongMetadata(data)
     
-    results = spotifyhelper.search_in_spotify(title)
+    results = Spotify.search(title)
     for r in results:
         if search_in_text(title_words, r['title']) and search_in_text(title_words, ' '.join(r['artists'])):
             data = {

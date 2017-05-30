@@ -39,11 +39,11 @@ def get_valid_filename(s):
     'Johns Portrait In 2004.jpg'
     """
 
+    s = s.replace('Ø', 'o')
     s = strip_accents(s)
     s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore')
     s = re.sub('[^\w\s-]', '', s).strip().lower().title()[:80]
     
-    #
     return s
 
 
